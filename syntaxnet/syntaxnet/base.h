@@ -13,14 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef $TARGETDIR_BASE_H_
-#define $TARGETDIR_BASE_H_
+#ifndef SYNTAXNET_BASE_H_
+#define SYNTAXNET_BASE_H_
 
 #include <functional>
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
@@ -50,4 +50,4 @@ using std::string;
 
   // namespace syntaxnet
 
-#endif  // $TARGETDIR_BASE_H_
+#endif  // SYNTAXNET_BASE_H_

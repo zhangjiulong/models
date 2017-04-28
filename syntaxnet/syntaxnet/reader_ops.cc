@@ -15,17 +15,17 @@ limitations under the License.
 
 #include <math.h>
 #include <deque>
-#include <unordered_map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "syntaxnet/base.h"
 #include "syntaxnet/feature_extractor.h"
 #include "syntaxnet/parser_state.h"
 #include "syntaxnet/parser_transitions.h"
-#include "syntaxnet/sentence_batch.h"
 #include "syntaxnet/sentence.pb.h"
+#include "syntaxnet/sentence_batch.h"
 #include "syntaxnet/shared_store.h"
 #include "syntaxnet/sparse.pb.h"
 #include "syntaxnet/task_context.h"
@@ -35,7 +35,6 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/io/inputbuffer.h"
 #include "tensorflow/core/lib/io/table.h"
 #include "tensorflow/core/lib/io/table_options.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
@@ -144,7 +143,7 @@ class ParsingReader : public OpKernel {
     }
 
     // Create the outputs for each feature space.
-    vector<Tensor *> feature_outputs(features_->NumEmbeddings());
+    std::vector<Tensor *> feature_outputs(features_->NumEmbeddings());
     for (size_t i = 0; i < feature_outputs.size(); ++i) {
       OP_REQUIRES_OK(context, context->allocate_output(
                                   i, TensorShape({sentence_batch_->size(),
@@ -206,7 +205,7 @@ class ParsingReader : public OpKernel {
   int additional_output_index() const { return feature_size_ + 1; }
   ParserState *state(int i) const { return states_[i].get(); }
   const ParserTransitionSystem &transition_system() const {
-    return *transition_system_.get();
+    return *transition_system_;
   }
 
   // Parser task context.
@@ -400,7 +399,7 @@ class DecodedParseReader : public ParsingReader {
     // pull from the back of the docids queue as long as the sentences have been
     // completely processed. If the next document has not been completely
     // processed yet, then the docid will not be found in 'sentence_map_'.
-    vector<Sentence> sentences;
+    std::vector<Sentence> sentences;
     while (!docids_.empty() &&
            sentence_map_.find(docids_.back()) != sentence_map_.end()) {
       sentences.emplace_back(sentence_map_[docids_.back()]);
@@ -428,7 +427,7 @@ class DecodedParseReader : public ParsingReader {
   string scoring_type_;
 
   mutable std::deque<string> docids_;
-  mutable map<string, Sentence> sentence_map_;
+  mutable std::map<string, Sentence> sentence_map_;
 
   TF_DISALLOW_COPY_AND_ASSIGN(DecodedParseReader);
 };
@@ -450,6 +449,13 @@ class WordEmbeddingInitializer : public OpKernel {
     OP_REQUIRES_OK(context, context->GetAttr("vectors", &vectors_path_));
     OP_REQUIRES_OK(context,
                    context->GetAttr("embedding_init", &embedding_init_));
+
+    // Convert the seeds into a single 64-bit seed.  NB: seed=0,seed2=0 converts
+    // into seed_=0, which causes Eigen PRNGs to seed non-deterministically.
+    int seed, seed2;
+    OP_REQUIRES_OK(context, context->GetAttr("seed", &seed));
+    OP_REQUIRES_OK(context, context->GetAttr("seed2", &seed2));
+    seed_ = static_cast<uint64>(seed) | static_cast<uint64>(seed2) << 32;
 
     // Sets up number and type of inputs and outputs.
     OP_REQUIRES_OK(context, context->MatchSignature({}, {DT_FLOAT}));
@@ -480,11 +486,10 @@ class WordEmbeddingInitializer : public OpKernel {
             context, context->allocate_output(
                          0, TensorShape({word_map->Size() + 3, embedding_size}),
                          &embedding_matrix));
-        embedding_matrix->matrix<float>()
-            .setRandom<Eigen::internal::NormalRandomGenerator<float>>();
-        embedding_matrix->matrix<float>() =
-            embedding_matrix->matrix<float>() * static_cast<float>(
-                embedding_init_ / sqrt(embedding_size));
+        auto matrix = embedding_matrix->matrix<float>();
+        Eigen::internal::NormalRandomGenerator<float> prng(seed_);
+        matrix =
+            matrix.random(prng) * (embedding_init_ / sqrtf(embedding_size));
       }
       if (vocab.find(embedding.token()) != vocab.end()) {
         SetNormalizedRow(embedding.vector(), vocab[embedding.token()],
@@ -514,19 +519,16 @@ class WordEmbeddingInitializer : public OpKernel {
   static tensorflow::Status CopyToTmpPath(const string &source_path,
                                           string *tmp_path) {
     // Opens source file.
-    tensorflow::RandomAccessFile *source_file;
+    std::unique_ptr<tensorflow::RandomAccessFile> source_file;
     TF_RETURN_IF_ERROR(tensorflow::Env::Default()->NewRandomAccessFile(
         source_path, &source_file));
-    std::unique_ptr<tensorflow::RandomAccessFile> source_file_deleter(
-        source_file);
 
     // Creates destination file.
-    tensorflow::WritableFile *target_file;
+    std::unique_ptr<tensorflow::WritableFile> target_file;
     *tmp_path = tensorflow::strings::Printf(
         "/tmp/%d.%lld", getpid(), tensorflow::Env::Default()->NowMicros());
     TF_RETURN_IF_ERROR(
         tensorflow::Env::Default()->NewWritableFile(*tmp_path, &target_file));
-    std::unique_ptr<tensorflow::WritableFile> target_file_deleter(target_file);
 
     // Performs copy.
     tensorflow::Status s;
@@ -536,7 +538,7 @@ class WordEmbeddingInitializer : public OpKernel {
     for (uint64 offset = 0; s.ok(); offset += kBytesToRead) {
       tensorflow::StringPiece data;
       s.Update(source_file->Read(offset, kBytesToRead, &data, &scratch[0]));
-      target_file->Append(data);
+      TF_RETURN_IF_ERROR(target_file->Append(data));
     }
     if (s.code() == OUT_OF_RANGE) {
       return tensorflow::Status::OK();
@@ -547,6 +549,9 @@ class WordEmbeddingInitializer : public OpKernel {
 
   // Task context used to configure this op.
   TaskContext task_context_;
+
+  // Seed for random initialization.
+  uint64 seed_ = 0;
 
   // Embedding vectors that are not found in the input sstable are initialized
   // randomly from a normal distribution with zero mean and

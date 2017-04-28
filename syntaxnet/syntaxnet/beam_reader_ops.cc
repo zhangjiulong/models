@@ -24,8 +24,8 @@ limitations under the License.
 #include "syntaxnet/base.h"
 #include "syntaxnet/parser_state.h"
 #include "syntaxnet/parser_transitions.h"
-#include "syntaxnet/sentence_batch.h"
 #include "syntaxnet/sentence.pb.h"
+#include "syntaxnet/sentence_batch.h"
 #include "syntaxnet/shared_store.h"
 #include "syntaxnet/sparse.pb.h"
 #include "syntaxnet/task_context.h"
@@ -35,7 +35,6 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/io/inputbuffer.h"
 #include "tensorflow/core/platform/env.h"
 
 using tensorflow::DEVICE_CPU;
@@ -611,7 +610,7 @@ class BeamParseReader : public OpKernel {
     // Write features.
     batch_state_->ResetBeams();
     batch_state_->ResetOffsets();
-    batch_state_->PopulateFeatureOutputs(context);
+    TF_CHECK_OK(batch_state_->PopulateFeatureOutputs(context));
 
     // Forward the beam state vector.
     Tensor *output;
@@ -842,7 +841,7 @@ class BeamEvalOutput : public OpKernel {
     BatchState *batch_state =
         reinterpret_cast<BatchState *>(context->input(0).scalar<int64>()());
     const int batch_size = batch_state->BatchSize();
-    vector<Sentence> documents;
+    std::vector<Sentence> documents;
     for (int beam_id = 0; beam_id < batch_size; ++beam_id) {
       if (batch_state->Beam(beam_id).gold_ != nullptr &&
           batch_state->Beam(beam_id).AllFinal()) {

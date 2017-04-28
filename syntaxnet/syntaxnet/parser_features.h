@@ -15,8 +15,8 @@ limitations under the License.
 
 // Sentence-based features for the transition parser.
 
-#ifndef $TARGETDIR_PARSER_FEATURES_H_
-#define $TARGETDIR_PARSER_FEATURES_H_
+#ifndef SYNTAXNET_PARSER_FEATURES_H_
+#define SYNTAXNET_PARSER_FEATURES_H_
 
 #include <string>
 
@@ -48,10 +48,11 @@ typedef FeatureFunction<ParserState, int> ParserIndexFeatureFunction;
 
 // Utilities to register the two types of parser features.
 #define REGISTER_PARSER_FEATURE_FUNCTION(name, component) \
-  REGISTER_FEATURE_FUNCTION(ParserFeatureFunction, name, component)
+  REGISTER_SYNTAXNET_FEATURE_FUNCTION(ParserFeatureFunction, name, component)
 
-#define REGISTER_PARSER_IDX_FEATURE_FUNCTION(name, component) \
-  REGISTER_FEATURE_FUNCTION(ParserIndexFeatureFunction, name, component)
+#define REGISTER_PARSER_IDX_FEATURE_FUNCTION(name, component)           \
+  REGISTER_SYNTAXNET_FEATURE_FUNCTION(ParserIndexFeatureFunction, name, \
+                                      component)
 
 // Alias for locator type that takes a parser state, and produces a focus
 // integer that can be used on nested ParserIndexFeature objects.
@@ -147,4 +148,4 @@ class BasicParserSentenceFeatureFunction :
 
 }  // namespace syntaxnet
 
-#endif  // $TARGETDIR_PARSER_FEATURES_H_
+#endif  // SYNTAXNET_PARSER_FEATURES_H_

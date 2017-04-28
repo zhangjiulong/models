@@ -13,19 +13,22 @@
 # limitations under the License.
 # ==============================================================================
 
-load("@tf//google/protobuf:protobuf.bzl", "cc_proto_library")
-load("@tf//google/protobuf:protobuf.bzl", "py_proto_library")
+load("@protobuf//:protobuf.bzl", "cc_proto_library")
+load("@protobuf//:protobuf.bzl", "py_proto_library")
 
-def if_cuda(a, b=[]):
-  return select({
-      "@tf//third_party/gpus/cuda:cuda_crosstool_condition": a,
-      "//conditions:default": b,
-  })
+
+def if_cuda(if_true, if_false = []):
+    """Shorthand for select()'ing on whether we're building with CUDA."""
+    return select({
+        "@local_config_cuda//cuda:using_nvcc": if_true,
+        "@local_config_cuda//cuda:using_clang": if_true,
+        "//conditions:default": if_false
+    })
 
 def tf_copts():
   return (["-fno-exceptions", "-DEIGEN_AVOID_STL_ARRAY",] +
           if_cuda(["-DGOOGLE_CUDA=1"]) +
-          select({"@tf//tensorflow:darwin": [],
+          select({"@org_tensorflow//tensorflow:darwin": [],
                   "//conditions:default": ["-pthread"]}))
 
 def tf_proto_library(name, srcs=[], has_services=False,
@@ -40,9 +43,9 @@ def tf_proto_library(name, srcs=[], has_services=False,
   cc_proto_library(name=name,
                    srcs=srcs,
                    deps=deps,
-                   cc_libs = ["@tf//google/protobuf:protobuf"],
-                   protoc="@tf//google/protobuf:protoc",
-                   default_runtime="@tf//google/protobuf:protobuf",
+                   cc_libs = ["@protobuf//:protobuf"],
+                   protoc="@protobuf//:protoc",
+                   default_runtime="@protobuf//:protobuf",
                    testonly=testonly,
                    visibility=visibility,)
 
@@ -51,8 +54,8 @@ def tf_proto_library_py(name, srcs=[], deps=[], visibility=None, testonly=0):
                    srcs=srcs,
                    srcs_version = "PY2AND3",
                    deps=deps,
-                   default_runtime="@tf//google/protobuf:protobuf_python",
-                   protoc="@tf//google/protobuf:protoc",
+                   default_runtime="@protobuf//:protobuf_python",
+                   protoc="@protobuf//:protoc",
                    visibility=visibility,
                    testonly=testonly,)
 
@@ -65,7 +68,7 @@ def tf_gen_op_libs(op_lib_names):
     native.cc_library(name=n + "_op_lib",
                       copts=tf_copts(),
                       srcs=["ops/" + n + ".cc"],
-                      deps=(["@tf//tensorflow/core:framework"]),
+                      deps=(["@org_tensorflow//tensorflow/core:framework"]),
                       visibility=["//visibility:public"],
                       alwayslink=1,
                       linkstatic=1,)
@@ -82,8 +85,8 @@ def tf_gen_op_wrapper_py(name, out=None, hidden=[], visibility=None, deps=[],
       linkopts = ["-lm"],
       copts = tf_copts(),
       linkstatic = 1,   # Faster to link this one-time-use binary dynamically
-      deps = (["@tf//tensorflow/core:framework",
-               "@tf//tensorflow/python:python_op_gen_main"] + deps),
+      deps = (["@org_tensorflow//tensorflow/core:framework",
+               "@org_tensorflow//tensorflow/python:python_op_gen_main"] + deps),
   )
 
   # Invoke the previous cc_binary to generate a python file.
@@ -103,5 +106,5 @@ def tf_gen_op_wrapper_py(name, out=None, hidden=[], visibility=None, deps=[],
                     srcs_version="PY2AND3",
                     visibility=visibility,
                     deps=[
-                        "@tf//tensorflow/python:framework_for_generated_wrappers",
+                        "@org_tensorflow//tensorflow/python:framework_for_generated_wrappers",
                     ],)

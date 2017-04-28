@@ -18,12 +18,11 @@
 
 import os.path
 import time
-
 import tensorflow as tf
 
 from tensorflow.python.framework import test_util
 from tensorflow.python.platform import googletest
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 
 from syntaxnet import structured_graph_builder
 from syntaxnet.ops import gen_parser_ops
@@ -39,10 +38,9 @@ class ParsingReaderOpsTest(test_util.TensorFlowTestCase):
 
   def setUp(self):
     # Creates a task context with the correct testing paths.
-    initial_task_context = os.path.join(
-        FLAGS.test_srcdir,
-        'syntaxnet/'
-        'testdata/context.pbtxt')
+    initial_task_context = os.path.join(FLAGS.test_srcdir,
+                                        'syntaxnet/'
+                                        'testdata/context.pbtxt')
     self._task_context = os.path.join(FLAGS.test_tmpdir, 'context.pbtxt')
     with open(initial_task_context, 'r') as fin:
       with open(self._task_context, 'w') as fout:

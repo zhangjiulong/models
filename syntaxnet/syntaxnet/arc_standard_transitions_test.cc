@@ -15,9 +15,6 @@ limitations under the License.
 
 #include <memory>
 #include <string>
-#include <gmock/gmock.h>
-
-#include "syntaxnet/utils.h"
 #include "syntaxnet/parser_state.h"
 #include "syntaxnet/parser_transitions.h"
 #include "syntaxnet/populate_test_inputs.h"
@@ -25,6 +22,9 @@ limitations under the License.
 #include "syntaxnet/task_context.h"
 #include "syntaxnet/task_spec.pb.h"
 #include "syntaxnet/term_frequency_map.h"
+#include "syntaxnet/utils.h"
+#include <gmock/gmock.h>
+
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/test.h"
@@ -105,8 +105,7 @@ TEST_F(ArcStandardTransitionTest, SingleSentenceDocumentTest) {
   Sentence document;
   TF_CHECK_OK(ReadFileToString(
       tensorflow::Env::Default(),
-      "syntaxnet/testdata/document",
-      &document_text));
+      "syntaxnet/testdata/document", &document_text));
   LOG(INFO) << "see doc\n:" << document_text;
   CHECK(TextFormat::ParseFromString(document_text, &document));
   SetUpForDocument(document);

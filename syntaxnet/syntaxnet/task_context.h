@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef $TARGETDIR_TASK_CONTEXT_H_
-#define $TARGETDIR_TASK_CONTEXT_H_
+#ifndef SYNTAXNET_TASK_CONTEXT_H_
+#define SYNTAXNET_TASK_CONTEXT_H_
 
 #include <string>
 #include <vector>
@@ -72,9 +72,9 @@ class TaskContext {
 
   // Vector of parameters required by this task.  These must be specified in the
   // task rather than relying on default values.
-  vector<string> required_parameters_;
+  std::vector<string> required_parameters_;
 };
 
 }  // namespace syntaxnet
 
-#endif  // $TARGETDIR_TASK_CONTEXT_H_
+#endif  // SYNTAXNET_TASK_CONTEXT_H_

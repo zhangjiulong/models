@@ -17,14 +17,12 @@
 
 
 import os.path
-
 import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import control_flow_ops as cf
 from tensorflow.python.platform import googletest
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 
 from syntaxnet import dictionary_pb2
 from syntaxnet import graph_builder
@@ -43,10 +41,9 @@ class ParsingReaderOpsTest(test_util.TensorFlowTestCase):
 
   def setUp(self):
     # Creates a task context with the correct testing paths.
-    initial_task_context = os.path.join(
-        FLAGS.test_srcdir,
-        'syntaxnet/'
-        'testdata/context.pbtxt')
+    initial_task_context = os.path.join(FLAGS.test_srcdir,
+                                        'syntaxnet/'
+                                        'testdata/context.pbtxt')
     self._task_context = os.path.join(FLAGS.test_tmpdir, 'context.pbtxt')
     with open(initial_task_context, 'r') as fin:
       with open(self._task_context, 'w') as fout:
@@ -164,23 +161,25 @@ class ParsingReaderOpsTest(test_util.TensorFlowTestCase):
       loop_vars = [epoch, num_actions]
 
       res = sess.run(
-          cf.While(Condition, Body, loop_vars, parallel_iterations=1))
+          tf.while_loop(Condition, Body, loop_vars,
+                        shape_invariants=[tf.TensorShape(None)] * 2,
+                        parallel_iterations=1))
       logging.info('Result: %s', res)
       self.assertEqual(res[0], 2)
 
-  def testWordEmbeddingInitializer(self):
-    def _TokenEmbedding(token, embedding):
-      e = dictionary_pb2.TokenEmbedding()
-      e.token = token
-      e.vector.values.extend(embedding)
-      return e.SerializeToString()
+  def _token_embedding(self, token, embedding):
+    e = dictionary_pb2.TokenEmbedding()
+    e.token = token
+    e.vector.values.extend(embedding)
+    return e.SerializeToString()
 
+  def testWordEmbeddingInitializer(self):
     # Provide embeddings for the first three words in the word map.
-    records_path = os.path.join(FLAGS.test_tmpdir, 'sstable-00000-of-00001')
+    records_path = os.path.join(FLAGS.test_tmpdir, 'records1')
     writer = tf.python_io.TFRecordWriter(records_path)
-    writer.write(_TokenEmbedding('.', [1, 2]))
-    writer.write(_TokenEmbedding(',', [3, 4]))
-    writer.write(_TokenEmbedding('the', [5, 6]))
+    writer.write(self._token_embedding('.', [1, 2]))
+    writer.write(self._token_embedding(',', [3, 4]))
+    writer.write(self._token_embedding('the', [5, 6]))
     del writer
 
     with self.test_session():
@@ -192,6 +191,34 @@ class ParsingReaderOpsTest(test_util.TensorFlowTestCase):
                   [3. / (9 + 16) ** .5, 4. / (9 + 16) ** .5],
                   [5. / (25 + 36) ** .5, 6. / (25 + 36) ** .5]]),
         embeddings[:3,])
+
+  def testWordEmbeddingInitializerRepeatability(self):
+    records_path = os.path.join(FLAGS.test_tmpdir, 'records2')
+    writer = tf.python_io.TFRecordWriter(records_path)
+    writer.write(self._token_embedding('.', [1, 2, 3]))  # 3 dims
+    del writer
+
+    # As long as there is one non-zero seed, the result should be repeatable.
+    for seed1, seed2 in [(0, 1), (1, 0), (123, 456)]:
+      with tf.Graph().as_default(), self.test_session():
+        embeddings1 = gen_parser_ops.word_embedding_initializer(
+            vectors=records_path,
+            task_context=self._task_context,
+            seed=seed1,
+            seed2=seed2)
+        embeddings2 = gen_parser_ops.word_embedding_initializer(
+            vectors=records_path,
+            task_context=self._task_context,
+            seed=seed1,
+            seed2=seed2)
+
+        # The number of terms is based on the word map, which may change if the
+        # test corpus is updated.  Just assert that there are some terms.
+        self.assertGreater(tf.shape(embeddings1)[0].eval(), 0)
+        self.assertGreater(tf.shape(embeddings2)[0].eval(), 0)
+        self.assertEqual(tf.shape(embeddings1)[1].eval(), 3)
+        self.assertEqual(tf.shape(embeddings2)[1].eval(), 3)
+        self.assertAllEqual(embeddings1.eval(), embeddings2.eval())
 
 
 if __name__ == '__main__':

@@ -13,20 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef $TARGETDIR_AFFIX_H_
-#define $TARGETDIR_AFFIX_H_
+#ifndef SYNTAXNET_AFFIX_H_
+#define SYNTAXNET_AFFIX_H_
 
 #include <stddef.h>
 #include <string>
 #include <vector>
 
-#include "syntaxnet/utils.h"
 #include "syntaxnet/dictionary.pb.h"
 #include "syntaxnet/feature_extractor.h"
 #include "syntaxnet/proto_io.h"
-#include "syntaxnet/sentence.pb.h"
 #include "syntaxnet/task_context.h"
 #include "syntaxnet/term_frequency_map.h"
+#include "syntaxnet/utils.h"
 #include "syntaxnet/workspace.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 
@@ -40,7 +39,11 @@ class Affix {
  private:
   friend class AffixTable;
   Affix(int id, const char *form, int length)
-      : id_(id), length_(length), form_(form), shorter_(NULL), next_(NULL) {}
+      : id_(id),
+        length_(length),
+        form_(form),
+        shorter_(nullptr),
+        next_(nullptr) {}
 
  public:
   // Returns unique id of affix.
@@ -142,14 +145,14 @@ class AffixTable {
   int max_length_;
 
   // Index from affix ids to affix items.
-  vector<Affix *> affixes_;
+  std::vector<Affix *> affixes_;
 
   // Buckets for word-to-affix hash map.
-  vector<Affix *> buckets_;
+  std::vector<Affix *> buckets_;
 
   TF_DISALLOW_COPY_AND_ASSIGN(AffixTable);
 };
 
 }  // namespace syntaxnet
 
-#endif  // $TARGETDIR_AFFIX_H_
+#endif  // SYNTAXNET_AFFIX_H_

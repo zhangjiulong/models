@@ -28,11 +28,11 @@ limitations under the License.
 //   };
 //
 //   #define REGISTER_FUNCTION(type, component)
-//     REGISTER_INSTANCE_COMPONENT(Function, type, component);
+//     REGISTER_SYNTAXNET_INSTANCE_COMPONENT(Function, type, component);
 //
 //  function.cc:
 //
-//   REGISTER_INSTANCE_REGISTRY("function", Function);
+//   REGISTER_SYNTAXNET_INSTANCE_REGISTRY("function", Function);
 //
 //   class Cos : public Function {
 //    public:
@@ -50,8 +50,8 @@ limitations under the License.
 //   Function *f = Function::Lookup("cos");
 //   double result = f->Evaluate(arg);
 
-#ifndef $TARGETDIR_REGISTRY_H_
-#define $TARGETDIR_REGISTRY_H_
+#ifndef SYNTAXNET_REGISTRY_H_
+#define SYNTAXNET_REGISTRY_H_
 
 #include <string.h>
 #include <string>
@@ -70,7 +70,7 @@ class ComponentMetadata {
         class_name_(class_name),
         file_(file),
         line_(line),
-        link_(NULL) {}
+        link_(nullptr) {}
 
   // Returns component name.
   const char *name() const { return name_; }
@@ -131,7 +131,7 @@ struct ComponentRegistry {
         : ComponentMetadata(type, class_name, file, line), object_(object) {
       // Register registry in master registry if this is the first registered
       // component of this type.
-      if (registry->components == NULL) {
+      if (registry->components == nullptr) {
         RegistryMetadata::Register(new RegistryMetadata(
             registry->name, registry->class_name, registry->file,
             registry->line,
@@ -160,8 +160,8 @@ struct ComponentRegistry {
   // Finds registrar for named component in registry.
   const Registrar *GetComponent(const char *type) const {
     Registrar *r = components;
-    while (r != NULL && strcmp(type, r->type()) != 0) r = r->next();
-    if (r == NULL) {
+    while (r != nullptr && strcmp(type, r->type()) != 0) r = r->next();
+    if (r == nullptr) {
       LOG(FATAL) << "Unknown " << name << " component: '" << type << "'.";
     }
     return r;
@@ -218,26 +218,26 @@ class RegisterableInstance {
   static Registry registry_;
 };
 
-#define REGISTER_CLASS_COMPONENT(base, type, component)             \
+#define REGISTER_SYNTAXNET_CLASS_COMPONENT(base, type, component)   \
   static base *__##component##__factory() { return new component; } \
   static base::Registry::Registrar __##component##__##registrar(    \
       base::registry(), type, #component, __FILE__, __LINE__,       \
       __##component##__factory)
 
-#define REGISTER_CLASS_REGISTRY(type, classname)                  \
+#define REGISTER_SYNTAXNET_CLASS_REGISTRY(type, classname)        \
   template <>                                                     \
   classname::Registry RegisterableClass<classname>::registry_ = { \
       type, #classname, __FILE__, __LINE__, NULL}
 
-#define REGISTER_INSTANCE_COMPONENT(base, type, component)       \
-  static base::Registry::Registrar __##component##__##registrar( \
+#define REGISTER_SYNTAXNET_INSTANCE_COMPONENT(base, type, component) \
+  static base::Registry::Registrar __##component##__##registrar(     \
       base::registry(), type, #component, __FILE__, __LINE__, new component)
 
-#define REGISTER_INSTANCE_REGISTRY(type, classname)                  \
+#define REGISTER_SYNTAXNET_INSTANCE_REGISTRY(type, classname)        \
   template <>                                                        \
   classname::Registry RegisterableInstance<classname>::registry_ = { \
       type, #classname, __FILE__, __LINE__, NULL}
 
 }  // namespace syntaxnet
 
-#endif  // $TARGETDIR_REGISTRY_H_
+#endif  // SYNTAXNET_REGISTRY_H_
